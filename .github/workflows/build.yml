@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install MinGW-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-i686
+
+      - name: Build
+        run: make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: mwccwrap
+          path: |
+            mwccwrap.exe
+            PluginLib2.dll
+            PluginLib3.dll
+            ASINTPPC.DLL

@@ -1,0 +1,93 @@
+LIBRARY PluginLib3
+EXPORTS
+    ; Custom exports for mwccwrap
+    MWCC_InitStringTable
+
+    ; COS Handle Management (2000-2007)
+    COS_NewHandle                   @2000
+    COS_NewOSHandle                 @2001
+    COS_FreeHandle                  @2002
+    COS_ResizeHandle                @2003
+    COS_LockHandle                  @2005
+    COS_LockHandleHi                @2006
+    COS_UnlockHandle                @2007
+
+    ; COS File I/O (2101-2113)
+    COS_FileNew                     @2101
+    COS_FileOpen                    @2102
+    COS_FileGetType                 @2103
+    COS_FileGetSize                 @2104
+    COS_FileRead                    @2105
+    COS_FileWrite                   @2106
+    COS_FileGetPos                  @2107
+    COS_FileSetPos                  @2108
+    COS_FileClose                   @2109
+    COS_FileSetFSSpec               @2110
+    COS_FileGetFSSpecInfo           @2112
+    COS_FileGetPathName             @2113
+
+    ; COS Utility (2201-2205)
+    COS_GetTicks                    @2201
+    COS_GetString                   @2203
+    COS_IsMultiByte                 @2205
+
+    ; CW Plugin Core (8000-8034)
+    CWGetPluginRequest              @8000
+    CWDonePluginRequest             @8001
+    CWGetAPIVersion                 @8002
+    CWGetProjectFile                @8005
+    CWGetOutputFileDirectory        @8006
+    CWGetProjectFileCount           @8007
+    CWGetFileInfo                   @8008
+    CWFindAndLoadFile               @8009
+    CWGetFileText                   @8010
+    CWReleaseFileText               @8011
+    CWGetOverlay1GroupsCount        @8013
+    CWGetOverlay1GroupInfo          @8014
+    CWGetOverlay1Info               @8015
+    CWGetOverlay1FileInfo           @8016
+    CWReportMessage                 @8017
+    CWAlert                         @8018
+    CWShowStatus                    @8019
+    CWUserBreak                     @8020
+    CWGetNamedPreferences           @8021
+    CWSetModDate                    @8024
+    CWCreateNewTextDocument         @8026
+    CWAllocateMemory                @8027
+    CWFreeMemory                    @8028
+    CWAllocMemHandle                @8029
+    CWFreeMemHandle                 @8030
+    CWGetMemHandleSize              @8031
+    CWResizeMemHandle               @8032
+    CWLockMemHandle                 @8033
+    CWUnlockMemHandle               @8034
+
+    ; CW Licensing (8037-8038, R5+)
+    CWCheckoutLicense               @8037
+    CWCheckinLicense                @8038
+
+    ; CW Compiler-Specific (9000-9034)
+    CWSecretAttachHandle            @9000
+    ; CWSecretDetachHandle            @9001
+    CWSecretPeekHandle              @9002
+    CWIsPrecompiling                @9003
+    CWIsAutoPrecompiling            @9004
+    CWIsPreprocessing               @9005
+    CWIsGeneratingDebugInfo         @9006
+    CWIsCachingPrecompiledHeaders   @9007
+    CWGetBrowseOptions              @9008
+    CWGetBuildSequenceNumber        @9009
+    CWGetTargetInfo                 @9010
+    CWSetTargetInfo                 @9011
+    CWGetMainFileNumber             @9012
+    CWGetMainFileID                 @9013
+    CWGetMainFileSpec               @9014
+    CWGetMainFileText               @9015
+    CWCachePrecompiledHeader        @9016
+    CWLoadObjectData                @9017
+    CWFreeObjectData                @9018
+    CWStoreObjectData               @9019
+    CWDisplayLines                  @9020
+    CWGetPrecompiledHeaderSpec      @9023
+    CWSecretGetNamedPreferences     @9033
+    CWGetTargetName                 @9034

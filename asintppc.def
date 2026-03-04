@@ -1,0 +1,26 @@
+LIBRARY ASINTPPC
+EXPORTS
+    ASI_CopyPtoC        @92
+    DisposeHandle       @250
+    GetIndString        @302
+    NewHandle           @383
+    SetHandleSize       @473
+    TickCount           @521
+    FSClose             @578
+    FSWrite             @580
+    MemError            @586
+    EqualString         @602
+    GetVInfo            @609
+    FSRead              @647
+    GetEOF              @654
+    GetFPos             @656
+    SetFPos             @728
+    HGetFInfo           @768
+    TempNewHandle       @769
+    FSMakeFSSpec        @955
+    HCreate             @1064
+    HDelete             @1066
+    HOpen               @1067
+    PBGetCatInfoSync    @2237
+    PBHGetFInfoSync     @2267
+    CharacterByteType   @6028

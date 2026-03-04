@@ -1,0 +1,40 @@
+LIBRARY PluginLib2
+EXPORTS
+    ; Custom exports for mwccwrap
+    MWCC_InitStringTable
+
+    ; CW Plugin Core (8000-8034)
+    CWGetPluginRequest              @8000
+    CWDonePluginRequest             @8001
+    CWGetAPIVersion                 @8002
+    CWGetProjectFile                @8005
+    CWGetProjectFileCount           @8007
+    CWFindAndLoadFile               @8009
+    CWGetFileText                   @8010
+    CWReleaseFileText               @8011
+    CWReportMessage                 @8017
+    CWSetModDate                    @8024
+    CWCreateNewTextDocument         @8026
+    CWAllocMemHandle                @8029
+    CWFreeMemHandle                 @8030
+    CWLockMemHandle                 @8033
+    CWUnlockMemHandle               @8034
+
+    ; CW Compiler-Specific (9000-9033)
+    CWSecretAttachHandle            @9000
+    CWIsPrecompiling                @9003
+    CWIsAutoPrecompiling            @9004
+    CWIsPreprocessing               @9005
+    CWIsGeneratingDebugInfo         @9006
+    CWIsCachingPrecompiledHeaders   @9007
+    CWGetBrowseOptions              @9008
+    CWGetMainFileNumber             @9012
+    CWGetMainFileID                 @9013
+    CWGetMainFileSpec               @9014
+    CWGetMainFileText               @9015
+    CWCachePrecompiledHeader        @9016
+    CWLoadObjectData                @9017
+    CWStoreObjectData               @9019
+    CWDisplayLines                  @9020
+    CWGetPrecompiledHeaderSpec      @9023
+    CWSecretGetNamedPreferences     @9033
