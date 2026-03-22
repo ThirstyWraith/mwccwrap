@@ -773,11 +773,11 @@ static void apply_dash_o_token(const char* token, CWPluginContext ctx, int* hand
         return;
     }
     if (strcmp(token, "p") == 0) {
-        ctx->prefsOptimizer.optfor = 1; /* 1 = Speed */
+        ctx->prefsOptimizer.optfor = 2;
         return;
     }
     if (strcmp(token, "s") == 0) {
-        ctx->prefsOptimizer.optfor = 2; /* 2 = Space */
+        ctx->prefsOptimizer.optfor = 1;
         return;
     }
     if (handled) *handled = 0;
@@ -838,11 +838,11 @@ static int apply_opt_keyword(const char* token, CWPluginContext ctx)
         return 1;
     }
     if (strcmp(token, "speed") == 0) {
-        ctx->prefsOptimizer.optfor = 2; /* 2 = Speed */
+        ctx->prefsOptimizer.optfor = 2;
         return 1;
     }
     if (strcmp(token, "space") == 0 || strcmp(token, "size") == 0) {
-        ctx->prefsOptimizer.optfor = 1; /* 1 = Space */
+        ctx->prefsOptimizer.optfor = 1;
         return 1;
     }
     if (strncmp(token, "level=", 6) == 0 || strncmp(token, "l=", 2) == 0) {
