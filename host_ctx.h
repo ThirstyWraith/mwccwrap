@@ -282,41 +282,153 @@ typedef struct PPreprocessor {
  * MIPS preference panel structs
  * ============================================================ */
 
-/* "MIPS CodeGen" panel (20 bytes) */
-typedef struct PMIPSCodeGen {
-    SInt16 version;             /* 0x00: ignored by DLL */
-    UInt8  structalignment;     /* 0x02: struct alignment (bulk-copied, not individually read) */
-    UInt8  tracebacktables;     /* 0x03: traceback tables (bulk-copied, not individually read) */
-    SInt16 processor;           /* 0x04: processor type (overridden to 0x1000 for PSX in init) */
-    SInt16 fpuType;             /* 0x06: FPU type: 0=none, 1=single, 2=double, 3=all */
-    SInt16 isaLevel;            /* 0x08: MIPS ISA level (I/II/III/IV) */
-    UInt8  multibyteAware;      /* 0x0A: multibyte string handling */
-    UInt8  peephole;            /* 0x0B: peephole optimization enable */
-    UInt8  reserved_0C;         /* 0x0C: unused */
-    UInt8  useIntrinsics;       /* 0x0D: inline intrinsics for strcpy/memcpy/etc */
-    UInt8  reserved_0E;         /* 0x0E: unused */
-    UInt8  reserved_0F;         /* 0x0F: unused */
-    UInt32 reserved_10;         /* 0x10: stored but never read */
-} PMIPSCodeGen;
+typedef struct MIPSCodeGenR3 {
+    SInt16 version; 
+    SInt16 processor; 
+    SInt16 optimizationlevel;
+    UInt8  readonlystrings;
+    UInt8  floatgen;
+    UInt8  isa_ii;
+    UInt8  isa_iii;
+    UInt8  isa_iv;
+    UInt8  pad_0B;
+} MIPSCodeGenR3;
 
-/* "MIPS Linker Panel" (340 bytes) */
-typedef struct PMIPSLinker {
-    SInt16 version;             /* 0x00 */
-    UInt8  reserved_02;         /* 0x02 */
-    UInt8  reserved_03;         /* 0x03 */
-    UInt8  reserved_04;         /* 0x04 */
-    UInt8  genOutput;           /* 0x05: controls linker output behavior */
-    UInt8  reserved_06[334];    /* 0x06..0x153 */
-} PMIPSLinker;
+typedef struct MIPSCodeGenR4 {
+    SInt16 version; 
+    SInt16 pad_02; 
+    SInt16 optimizationlevel; 
+    UInt8  readonlystrings; 
+    UInt8  pad_07;
+    UInt8  pad_08; // always set
+    UInt8  pad_09;
+    UInt8  pad_0A;
+    UInt8  pad_0B;
+    UInt8  profiler; 
+    UInt8  pad_0D;
+} MIPSCodeGenR4;
 
-/* "MIPS Project" (60 bytes) */
-typedef struct PMIPSProject {
-    SInt16 version;             /* 0x00 */
-    UInt8  reserved_02;         /* 0x02 */
-    UInt8  reserved_03;         /* 0x03 */
-    SInt16 projectSetting;      /* 0x04: project-level setting */
-    UInt8  reserved_06[54];     /* 0x06..0x3B */
-} PMIPSProject;
+typedef struct MIPSCodeGenR5 {
+    SInt16 version;
+    SInt16 pad_02;
+    SInt16 optimizationlevel;
+    SInt16 pad_06;
+    UInt8  pad_08; // always set
+    UInt8  pad_09;
+    UInt8  readonlystrings;
+    UInt8  profiler;
+    UInt8  pad_0C[8];
+} MIPSCodeGenR5;
+
+typedef struct MIPSLinkerPanelR3 {
+    SInt16 version;
+    UInt8  listdwarf; 
+    UInt8  symfullpath;
+    UInt8  linkmap;
+    UInt8  nolinkwarnings;
+    UInt8  genSrecFile; 
+    UInt8  linkunused;
+    SInt32 codeaddr;
+    SInt32 dataaddr;
+    SInt32 smalldataaddr; 
+    SInt32 stackaddr;
+    UInt8  mainname[64];
+    UInt8  listclosure; 
+    UInt8  pad_0x59;
+    SInt16 srecLength; 
+    UInt8  srecEOL; 
+    UInt8  pad_0x5D;
+} MIPSLinkerPanelR3;
+
+typedef struct MIPSLinkerPanelR4 {
+    SInt16 version;
+    UInt8  listdwarf; 
+    UInt8  symfullpath; 
+    UInt8  linkmap;
+    UInt8  nolinkwarnings;
+    UInt8  genSrecFile;
+    UInt8  linkunused; 
+    UInt8  mainname[64];
+    UInt8  listclosure; 
+    UInt8  pad_0x49;
+    SInt16 srecLength; 
+    UInt8  srecEOL; 
+    UInt8  outputformat; 
+} MIPSLinkerPanelR4;
+
+typedef struct MIPSLinkerPanelR5 {
+    SInt16 version;
+    SInt16 srecLength; 
+    UInt8  listdwarf; 
+    UInt8  symfullpath; 
+    UInt8  linkmap;
+    UInt8  nolinkwarnings;
+    UInt8  genSrecFile;
+    UInt8  linkunused; 
+    UInt8  listclosure; 
+    UInt8  pad1;
+    UInt8  srecEOL; 
+    UInt8  pad2;
+    UInt8  nodeadstrip;
+    UInt8  genelfsymtable;
+    UInt8  pad3[4];
+    UInt8  mainname[64];
+    UInt8  forceactivesymbols[256];
+} MIPSLinkerPanelR5;
+
+typedef struct MIPSProjectR3 {
+    SInt16 version;
+    SInt16 projtype;
+    UInt8  outfile_name_length;
+    char   outfile_name[31];
+    SInt32 heapsize;
+    SInt32 stacksize;
+    UInt8  bigendian;
+    UInt8  pad2d;
+    SInt16 datathreshold;
+    SInt16 codeModel; 
+    UInt8  gprelative; 
+    UInt8  pcrelative; 
+    UInt8  data16bit; 
+    UInt8  pad35;
+} MIPSProjectR3;
+
+typedef struct MIPSProjectR4 {
+    SInt16 version; 
+    SInt16 projtype;
+    UInt8  outfile_name_length;
+    char   outfile_name[31];
+    SInt32 heapsize;
+    SInt32 stacksize;
+    UInt8  bigendian; 
+    UInt8  pad2d;
+    SInt16 datathreshold;
+    SInt16 codeModel; 
+    UInt8  gprelative; 
+    UInt8  pcrelative; 
+    UInt8  data16bit; 
+    UInt8  pad35;
+} MIPSProjectR4;
+
+typedef struct MIPSProjectR5 {
+    SInt16 version; 
+    SInt16 projtype;
+    SInt16 datathreshold;
+    SInt16 codeModel; 
+    UInt8  pad[4];
+    SInt32 heapsize;
+    SInt32 stacksize;
+    UInt8  bigendian; 
+    UInt8  gprelative; 
+    UInt8  pcrelative; 
+    UInt8  data16bit_leftover;
+    UInt8  pad2[4];
+    UInt8  outfile_name_length;
+    char   outfile_name[31];
+} MIPSProjectR5;
+
+/* Dummy struct for IR Optimizer request in older DLLs */
+typedef struct PIROptimizerDummy { UInt8 pad[12]; } PIROptimizerDummy;
 
 #pragma pack(pop)
 
@@ -369,20 +481,40 @@ typedef struct CWPluginPrivateContext {
     PWarningC         prefsWarnings;
     PGlobalOptimizer  prefsOptimizer;
 
-    /* MIPS-specific panels */
-    PMIPSCodeGen      prefsMIPSCodeGen;
-    PMIPSLinker       prefsMIPSLinker;
-    PMIPSProject      prefsMIPSProject;
-    UInt8             prefsMIPSCodeGenPanel[sizeof(PMIPSCodeGen)];
-    UInt8             prefsMIPSLinkerPanel[sizeof(PMIPSLinker)];
-    Boolean           prefsMIPSCodeGenR4Compat;
+    /* Safe scratchpad specifically for MIPS command-line flags */
+    struct {
+        int floatgen;         /* -fp */
+        int datathreshold;    /* -sdata */
+        int profiler;         /* -profile */
+        int readonlystrings;  /* -rostr */
+    } mips_cmdline;
 
     /* PPC EABI-specific panels */
     PPCEABICodeGen    prefsPPCCodeGen;
     PPCEABILinker     prefsPPCLinker;
     PPCEABIProject    prefsPPCProject;
     PPreprocessor     prefsPreprocessor;
-
+    /* MIPS Binary Output Buffers */
+    int mips_version; /* 3, 4, or 5 (0 if PowerPC) */
+    union {
+        struct {
+            MIPSCodeGenR3     codegen;
+            MIPSLinkerPanelR3 linker;
+            MIPSProjectR3     project;
+            PIROptimizerDummy ir_opt;
+        } r3;
+        struct {
+            MIPSCodeGenR4     codegen;
+            MIPSLinkerPanelR4 linker;
+            MIPSProjectR4     project;
+            PIROptimizerDummy ir_opt;
+        } r4;
+        struct {
+            MIPSCodeGenR5     codegen;
+            MIPSLinkerPanelR5 linker;
+            MIPSProjectR5     project;
+        } r5;
+    } mips_panels;
     /* Define/pragma text exposed as a virtual prefix file */
     char*  defineText;          /* accumulated #define/#undef/#pragma/#include lines */
     SInt32 defineTextLen;

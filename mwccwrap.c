@@ -162,7 +162,6 @@ static void print_help(void) {
         "  -opt off|on|all|full   Optimization level\n"
         "  -opt speed|space       Optimization target\n"
         "  -opt level=<N>         Set optimization level (0-4)\n"
-        "  -opt [no]intrinsics    Inline intrinsic functions\n"
         "  -opt [no]peephole      Peephole optimization\n"
         "\n"
         "Debug:\n"
@@ -343,28 +342,28 @@ static int get_compiler_version_info(const char* dll_path, CompilerVersionInfo* 
     free(info_blob);
     return found_any;
 }
+/*
+ * Zero-I/O MIPS Version Detection using Opcode Fingerprinting.
+ * Reads the instruction bytes exactly 16 bytes deep into PluginMain 
+ * to uniquely identify the CodeWarrior compiler version.
+ */
+static int detect_mips_version(void* plugin_main_ptr) {
+    unsigned int* p;
+    
+    if (!plugin_main_ptr) return 0;
+    
+    p = (unsigned int*)plugin_main_ptr;
 
-static int should_enable_mips_r4_compat(const CompilerVersionInfo* info) {
-    unsigned int major, minor, patch, build;
-
-    if (!info || !info->has_fixed_version) return 0;
-
-    major = (unsigned int)HIWORD(info->version_ms);
-    minor = (unsigned int)LOWORD(info->version_ms);
-    patch = (unsigned int)HIWORD(info->version_ls);
-    build = (unsigned int)LOWORD(info->version_ls);
-
-    if (!(major == 2 && minor == 44 && patch == 14 && build == 0)) return 0;
-
-    if (info->file_description[0] &&
-        _stricmp(info->file_description, "MIPS Compiler for PlayStation") != 0)
-    {
-        return 0;
+    /* Check the opcode block at offset 0x10 (p[4]) */
+    switch (p[4]) {
+        case 0x0025389F: return 30; /* R3   */
+        case 0x0025AF26: return 40; /* R4   */
+        case 0x885550D2: return 41; /* R4.1 */
+        case 0x89000000: return 50; /* R5.0 */
+        case 0xDEF0E855: return 52; /* R5.2 */
+        default:         return 0;  /* Unknown or PowerPC */
     }
-
-    return 1;
 }
-
 static void format_version_line(const CompilerVersionInfo* info, char* out, size_t out_size) {
     unsigned int major, minor, patch, build;
 
@@ -713,86 +712,78 @@ static int set_ppc_alignment(PPCEABICodeGen* ppc, const char* value) {
     return 0;
 }
 
-static int apply_ppc_string_option(PFrontEndC* fe, PPCEABICodeGen* ppc, const char* token) {
-    if (!fe || !ppc || !token || !token[0]) return 0;
+static int apply_string_option(CWPluginContext ctx, const char* token) {
+    if (!ctx || !token || !token[0]) return 0;
 
     if (_stricmp(token, "reuse") == 0) {
-        fe->dontreusestrings = 0;
+        ctx->prefsFrontEnd.dontreusestrings = 0;
         return 1;
     }
     if (_stricmp(token, "noreuse") == 0) {
-        fe->dontreusestrings = 1;
+        ctx->prefsFrontEnd.dontreusestrings = 1;
         return 1;
     }
     if (_stricmp(token, "pool") == 0) {
-        fe->poolstrings = 1;
+        ctx->prefsFrontEnd.poolstrings = 1;
         return 1;
     }
     if (_stricmp(token, "nopool") == 0) {
-        fe->poolstrings = 0;
+        ctx->prefsFrontEnd.poolstrings = 0;
         return 1;
     }
     if (_stricmp(token, "readonly") == 0) {
-        ppc->readonlystrings = 1;
+        ctx->prefsPPCCodeGen.readonlystrings = 1;
+        ctx->mips_cmdline.readonlystrings = 1;
         return 1;
     }
     if (_stricmp(token, "noreadonly") == 0) {
-        ppc->readonlystrings = 0;
+        ctx->prefsPPCCodeGen.readonlystrings = 0;
+        ctx->mips_cmdline.readonlystrings = 0;
         return 1;
     }
     return 0;
 }
 
-static void apply_dash_o_token(const char* token,
-                               PGlobalOptimizer* opt,
-                               PMIPSCodeGen* mips,
-                               PPCEABICodeGen* ppc,
-                               int* handled)
+static void apply_dash_o_token(const char* token, CWPluginContext ctx, int* handled)
 {
     if (!token || !token[0]) return;
 
     if (strcmp(token, "0") == 0) {
-        opt->optimizationlevel = 0;
+        ctx->prefsOptimizer.optimizationlevel = 0;
         return;
     }
     if (strcmp(token, "1") == 0) {
-        opt->optimizationlevel = 1;
+        ctx->prefsOptimizer.optimizationlevel = 1;
         return;
     }
     if (strcmp(token, "2") == 0) {
-        opt->optimizationlevel = 2;
-        mips->peephole = 1;
-        ppc->peephole = 1;
+        ctx->prefsOptimizer.optimizationlevel = 2;
+        ctx->prefsPPCCodeGen.peephole = 1;
         return;
     }
     if (strcmp(token, "3") == 0) {
-        opt->optimizationlevel = 3;
-        mips->peephole = 1;
-        ppc->peephole = 1;
+        ctx->prefsOptimizer.optimizationlevel = 3;
+        ctx->prefsPPCCodeGen.peephole = 1;
         return;
     }
     if (strcmp(token, "4") == 0) {
-        opt->optimizationlevel = 4;
-        mips->peephole = 1;
-        ppc->peephole = 1;
-        ppc->scheduling = 1;
+        ctx->prefsOptimizer.optimizationlevel = 4;
+        ctx->prefsPPCCodeGen.peephole = 1;
+        ctx->prefsPPCCodeGen.scheduling = 1;
         return;
     }
     if (strcmp(token, "p") == 0) {
-        opt->optfor = 2;
+        ctx->prefsOptimizer.optfor = 1; /* 1 = Speed */
         return;
     }
     if (strcmp(token, "s") == 0) {
-        opt->optfor = 1;
+        ctx->prefsOptimizer.optfor = 2; /* 2 = Space */
         return;
     }
     if (handled) *handled = 0;
 }
 
-static int parse_dash_o_option(const char* arg,
-                               PGlobalOptimizer* opt,
-                               PMIPSCodeGen* mips,
-                               PPCEABICodeGen* ppc)
+static int parse_dash_o_option(const char* arg, CWPluginContext ctx)
 {
     const char* spec;
     int handled = 1;
@@ -801,7 +792,7 @@ static int parse_dash_o_option(const char* arg,
     spec = arg + 2;
 
     if (!spec[0]) {
-        apply_dash_o_token("2", opt, mips, ppc, &handled);
+        apply_dash_o_token("2", ctx, &handled);
         return handled;
     }
 
@@ -815,84 +806,68 @@ static int parse_dash_o_option(const char* arg,
         char* tok = strtok(tmp, ",");
         while (tok) {
             if (tok[0]) {
-                apply_dash_o_token(tok, opt, mips, ppc, &handled);
+                apply_dash_o_token(tok, ctx, &handled);
             }
             tok = strtok(NULL, ",");
         }
         return handled;
     }
 
-    apply_dash_o_token(spec, opt, mips, ppc, &handled);
+    apply_dash_o_token(spec, ctx, &handled);
     return handled;
 }
 
-static int apply_opt_keyword(const char* token,
-                             PGlobalOptimizer* opt,
-                             PMIPSCodeGen* mips,
-                             PPCEABICodeGen* ppc)
+static int apply_opt_keyword(const char* token, CWPluginContext ctx)
 {
     if (!token || !token[0]) return 0;
 
     if (strcmp(token, "off") == 0 || strcmp(token, "none") == 0) {
-        opt->optimizationlevel = 0;
+        ctx->prefsOptimizer.optimizationlevel = 0;
         return 1;
     }
     if (strcmp(token, "on") == 0) {
-        opt->optimizationlevel = 2;
-        mips->peephole = 1;
-        ppc->peephole = 1;
+        ctx->prefsOptimizer.optimizationlevel = 2;
+        ctx->prefsPPCCodeGen.peephole = 1;
         return 1;
     }
     if (strcmp(token, "all") == 0 || strcmp(token, "full") == 0) {
-        opt->optimizationlevel = 4;
-        opt->optfor = 1;
-        mips->useIntrinsics = 1;
-        mips->peephole = 1;
-        ppc->peephole = 1;
-        ppc->scheduling = 1;
+        ctx->prefsOptimizer.optimizationlevel = 4;
+        ctx->prefsOptimizer.optfor = 1;
+        ctx->prefsPPCCodeGen.peephole = 1;
+        ctx->prefsPPCCodeGen.scheduling = 1;
         return 1;
     }
     if (strcmp(token, "speed") == 0) {
-        opt->optfor = 2;
+        ctx->prefsOptimizer.optfor = 2; /* 2 = Speed */
         return 1;
     }
     if (strcmp(token, "space") == 0 || strcmp(token, "size") == 0) {
-        opt->optfor = 1;
+        ctx->prefsOptimizer.optfor = 1; /* 1 = Space */
         return 1;
     }
     if (strncmp(token, "level=", 6) == 0 || strncmp(token, "l=", 2) == 0) {
         const char* num = strchr(token, '=') + 1;
         int lv = atoi(num);
         if (lv >= 0 && lv <= 4) {
-            opt->optimizationlevel = (UInt8)lv;
+            ctx->prefsOptimizer.optimizationlevel = (UInt8)lv;
             return 1;
         }
         return 0;
     }
-    if (strcmp(token, "intrinsics") == 0) {
-        mips->useIntrinsics = 1;
-        return 1;
-    }
-    if (strcmp(token, "nointrinsics") == 0) {
-        mips->useIntrinsics = 0;
-        return 1;
-    }
     if (strcmp(token, "peephole") == 0 || strcmp(token, "peep") == 0) {
-        mips->peephole = 1;
-        ppc->peephole = 1;
+        ctx->prefsPPCCodeGen.peephole = 1;
         return 1;
     }
     if (strcmp(token, "nopeephole") == 0 || strcmp(token, "nopeep") == 0) {
-        mips->peephole = 0;
-        ppc->peephole = 0;
+        ctx->prefsPPCCodeGen.peephole = 0;
         return 1;
     }
     if (strcmp(token, "schedule") == 0) {
-        ppc->scheduling = 1;
+        ctx->prefsPPCCodeGen.scheduling = 1;
         return 1;
     }
     if (strcmp(token, "noschedule") == 0) {
-        ppc->scheduling = 0;
+        ctx->prefsPPCCodeGen.scheduling = 0;
         return 1;
     }
     return 0;
@@ -1314,11 +1289,9 @@ static void init_pref_defaults(CWPluginContext ctx) {
     memset(&ctx->prefsOptimizer, 0, sizeof(PGlobalOptimizer));
 
     /* ---- MIPS-specific panels ---- */
-    memset(&ctx->prefsMIPSCodeGen, 0, sizeof(PMIPSCodeGen));
-    ctx->prefsMIPSCodeGen.fpuType = 1;          /* -fp single (default) */
-
-    memset(&ctx->prefsMIPSLinker, 0, sizeof(PMIPSLinker));
-    memset(&ctx->prefsMIPSProject, 0, sizeof(PMIPSProject));
+    memset(&ctx->mips_cmdline, 0, sizeof(ctx->mips_cmdline));
+    memset(&ctx->mips_panels, 0, sizeof(ctx->mips_panels));
+    ctx->mips_cmdline.datathreshold = 8;        /* -sdata 8 (default) */
 
     /* ---- PPC EABI-specific panels ---- */
     memset(&ctx->prefsPPCCodeGen, 0, sizeof(PPCEABICodeGen));
@@ -1404,8 +1377,6 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
 {
     PFrontEndC* fe = &ctx->prefsFrontEnd;
     PWarningC* warn = &ctx->prefsWarnings;
-    PGlobalOptimizer* opt = &ctx->prefsOptimizer;
-    PMIPSCodeGen* cg = &ctx->prefsMIPSCodeGen;
     PPCEABICodeGen* ppc = &ctx->prefsPPCCodeGen;
     const char* arg_val;
 
@@ -1717,16 +1688,17 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
                      tok;
                      tok = strtok(NULL, ","))
                 {
-                    if (!apply_ppc_string_option(fe, ppc, tok)) {
+                    if (!apply_string_option(ctx, tok)) {
                         fprintf(stderr, "warning: unknown -str value: %s\n", tok);
                     }
                 }
-            } else if (!apply_ppc_string_option(fe, ppc, arg_val)) {
+            } else if (!apply_string_option(ctx, arg_val)) {
                 fprintf(stderr, "warning: unknown -str value: %s\n", arg_val);
             }
         }
         else if (strcmp(arg, "-rostr") == 0 || strcmp(arg, "-readonlystrings") == 0) {
             /* Deprecated alias for -str readonly. Does not imply [no]reuse. */
+            ctx->mips_cmdline.readonlystrings = 1;
             ppc->readonlystrings = 1;
         }
         else if (strcmp(arg, "-multibyte") == 0 || strcmp(arg, "-multibyteaware") == 0) {
@@ -1872,7 +1844,7 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
 
         /* --- Optimizer --- */
         else if (arg[0] == '-' && arg[1] == 'O') {
-            if (!parse_dash_o_option(arg, opt, cg, ppc)) {
+            if (!parse_dash_o_option(arg, ctx)) {
                 fprintf(stderr, "warning: unknown -O option: %s\n", arg);
             }
         }
@@ -1888,11 +1860,11 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
                      tok;
                      tok = strtok(NULL, ","))
                 {
-                    if (!apply_opt_keyword(tok, opt, cg, ppc)) {
+                    if (!apply_opt_keyword(tok, ctx)) {
                         fprintf(stderr, "warning: unknown -opt value: %s\n", tok);
                     }
                 }
-            } else if (!apply_opt_keyword(arg_val, opt, cg, ppc)) {
+            } else if (!apply_opt_keyword(arg_val, ctx)) {
                 fprintf(stderr, "warning: unknown -opt value: %s\n", arg_val);
             }
         }
@@ -1901,13 +1873,15 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
         else if (strcmp(arg, "-fp") == 0) {
             NEXT_ARG(arg_val);
             if (_stricmp(arg_val, "off") == 0 || _stricmp(arg_val, "none") == 0) {
-                cg->fpuType = 0;
+                ctx->mips_cmdline.floatgen = 0;
                 ppc->floatingpoint = 0;
             } else if (_stricmp(arg_val, "single") == 0) {
-                cg->fpuType = 1;
+                ctx->mips_cmdline.floatgen = 1;
             } else if (_stricmp(arg_val, "soft") == 0 || _stricmp(arg_val, "software") == 0) {
+                ctx->mips_cmdline.floatgen = 0; 
                 ppc->floatingpoint = 1;
             } else if (_stricmp(arg_val, "hard") == 0 || _stricmp(arg_val, "hardware") == 0) {
+                ctx->mips_cmdline.floatgen = 1; 
                 ppc->floatingpoint = 2;
             } else if (_stricmp(arg_val, "fmadd") == 0) {
                 ppc->floatingpoint = 2;
@@ -1948,7 +1922,9 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
                  strcmp(arg, "-sdata") == 0 ||
                  strcmp(arg, "-sdatathreshold") == 0) {
             NEXT_ARG(arg_val);
-            ctx->prefsPPCProject.datathreshold = (SInt16)atoi(arg_val);
+            SInt16 threshold = (SInt16)atoi(arg_val);
+            ctx->prefsPPCProject.datathreshold = threshold;
+            ctx->mips_cmdline.datathreshold = threshold;
         }
         else if (strcmp(arg, "-sdata2") == 0 ||
                  strcmp(arg, "-sdata2threshold") == 0) {
@@ -2014,7 +1990,8 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
             }
         }
         else if (strcmp(arg, "-profile") == 0) {
-            /* profiler - stored but cc_mips.dll may not use it for PS1 */
+            /* profiler */
+            ctx->mips_cmdline.profiler = 1;
             ppc->profiler = 1;
         }
         else if (strcmp(arg, "-farcall") == 0) {
@@ -2255,12 +2232,8 @@ int main(int argc, char* argv[]) {
         copy_cstr(loaded_dll_name, sizeof(loaded_dll_name), loaded_dll_path);
     }
 
-    has_active_version_info = get_compiler_version_info(loaded_dll_path, &active_version_info);
-    ctx.prefsMIPSCodeGenR4Compat =
-        has_active_version_info ? should_enable_mips_r4_compat(&active_version_info) : FALSE;
-    if (ctx.verbose && ctx.prefsMIPSCodeGenR4Compat) {
-        fprintf(stderr, "Enabled prefsMIPSCodeGenR4Compat based on compiler version metadata.\n");
-    }
+    /* Initialize to 0. It will be properly detected later when PluginMain is found. */
+    ctx.mips_version = 0;
 
     if (g_registered_pluginlib_version == 2) {
         plugin_api_version = 8;
@@ -2303,6 +2276,16 @@ int main(int argc, char* argv[]) {
 
     if (ctx.verbose) fprintf(stderr, "Found plugin main at %p\n", (void*)plugin_main);
 
+    /* LATE DETECTION: Reuse the pointer mwccwrap already found */
+    ctx.mips_version = detect_mips_version((void*)plugin_main);
+
+    if (ctx.verbose) {
+        if (ctx.mips_version > 0) {
+            fprintf(stderr, "Detected MIPS Compiler Version Scale: %d\n", ctx.mips_version);
+        } else {
+            fprintf(stderr, "Detected PowerPC/Legacy Compiler Mode.\n");
+        }
+    }
     ctx.apiVersion = plugin_api_version;
     ctx.numFiles = num_sources;
 
