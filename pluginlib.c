@@ -1019,48 +1019,131 @@ CW_CALLBACK CWFreeObjectData(CWPluginContext ctx, SInt32 whichfile, CWMemHandle 
     return CWFreeMemHandle(ctx, objectdata);
 }
 
-/* ============================================================
- * Preferences
- * ============================================================ */
+static CWResult MIPS_GetPreferences(CWPluginContext ctx, const char* prefsname, void** prefsdata) {
+    const void* prefs = NULL;
+    SInt32 prefsSize = 0;
 
-static void build_mips_codegen_panel(CWPluginContext ctx) {
-    memcpy(ctx->prefsMIPSCodeGenPanel,
-           &ctx->prefsMIPSCodeGen,
-           sizeof(ctx->prefsMIPSCodeGenPanel));
-
-    if (ctx->prefsMIPSCodeGenR4Compat) {
-        /*
-         * R4 reads PMIPSCodeGen with a different layout than R5/R5.2.
-         * Keep a 20-byte panel, but patch overlapping bytes so both
-         * layouts see sensible values.
-         */
-        ctx->prefsMIPSCodeGenPanel[0x04] = (UInt8)(ctx->prefsMIPSCodeGen.processor & 0xFF);
-        ctx->prefsMIPSCodeGenPanel[0x05] = 0;
-        ctx->prefsMIPSCodeGenPanel[0x06] = (UInt8)(ctx->prefsMIPSCodeGen.fpuType & 0xFF);
-        ctx->prefsMIPSCodeGenPanel[0x07] = (ctx->prefsMIPSCodeGen.fpuType != 0) ? 1 : 0;
-        ctx->prefsMIPSCodeGenPanel[0x0C] = ctx->prefsMIPSCodeGen.useIntrinsics;
+    if (strcmp(prefsname, "C/C++ Compiler") == 0) {
+        prefs = &ctx->prefsFrontEnd;
+        prefsSize = sizeof(ctx->prefsFrontEnd);
+        if (ctx->mips_version >= 52) ctx->prefsFrontEnd.version = 13;
+        else if (ctx->mips_version >= 40) ctx->prefsFrontEnd.version = 12;
+        else ctx->prefsFrontEnd.version = 9;
     }
+    else if (strcmp(prefsname, "C/C++ Warnings") == 0) {
+        prefs = &ctx->prefsWarnings;
+        prefsSize = sizeof(ctx->prefsWarnings);
+        if (ctx->mips_version >= 52) ctx->prefsWarnings.version = 5;
+        else if (ctx->mips_version >= 40) ctx->prefsWarnings.version = 4;
+        else ctx->prefsWarnings.version = 3;
+    }
+    else if (strcmp(prefsname, "PS Global Optimizer") == 0) {
+        
+        ctx->prefsOptimizer.version = 1;
+        
+        /* Parser gives us: 1=Space, 2=Speed, 0=Default.
+         * MIPS DLL wants:  1=Space, 0=Speed.
+         * Default to Space (1) unless Speed (2) was explicitly requested.
+         */
+        ctx->prefsOptimizer.optfor = (ctx->prefsOptimizer.optfor == 2) ? 0 : 1;
+        
+        prefs = &ctx->prefsOptimizer;
+        prefsSize = sizeof(PGlobalOptimizer); 
+    }
+    else if (strcmp(prefsname, "MIPS Project") == 0) {
+        if (ctx->mips_version >= 50) {
+            MIPSProjectR5* p = &ctx->mips_panels.r5.project;
+            p->version = 3;
+            p->datathreshold = ctx->mips_cmdline.datathreshold;
+            // "Absolute Addressing" Code Model
+            p->codeModel = 1;
+            prefs = p; 
+            prefsSize = sizeof(MIPSProjectR5);
+        } else {
+            MIPSProjectR4* p = &ctx->mips_panels.r4.project;
+            p->version = 2;
+            p->datathreshold = ctx->mips_cmdline.datathreshold;
+            // "Absolute Addressing" Code Model
+            p->codeModel = 1;
+            prefs = p; 
+            prefsSize = sizeof(MIPSProjectR4); 
+        }
+    }
+    else if (strcmp(prefsname, "MIPS CodeGen") == 0) {
+        if (ctx->mips_version >= 50) {
+            MIPSCodeGenR5* p = &ctx->mips_panels.r5.codegen;
+            p->version = 7;
+            p->optimizationlevel = ctx->prefsOptimizer.optimizationlevel;
+            p->readonlystrings = ctx->mips_cmdline.readonlystrings;
+            p->profiler = ctx->mips_cmdline.profiler;
+            // always set
+            p->pad_08 = 1;
+            prefs = p; 
+            prefsSize = sizeof(MIPSCodeGenR5);
+        } else if (ctx->mips_version >= 40) {
+            MIPSCodeGenR4* p = &ctx->mips_panels.r4.codegen;
+            p->version = 5;
+            p->optimizationlevel = ctx->prefsOptimizer.optimizationlevel;
+            p->readonlystrings = ctx->mips_cmdline.readonlystrings;
+            p->profiler = ctx->mips_cmdline.profiler;
+            // always set
+            p->pad_08 = 1;
+            prefs = p; 
+            prefsSize = sizeof(MIPSCodeGenR4);
+        } else {
+            MIPSCodeGenR3* p = &ctx->mips_panels.r3.codegen;
+            p->version = 2;
+            p->optimizationlevel = ctx->prefsOptimizer.optimizationlevel;
+            p->floatgen = ctx->mips_cmdline.floatgen; 
+            p->readonlystrings = ctx->mips_cmdline.readonlystrings;
+            // TODO: possibly implement setting ISA Level, as the IDE lets you
+            prefs = p; 
+            prefsSize = sizeof(MIPSCodeGenR3);
+        }
+    }
+    else if (strcmp(prefsname, "MIPS Linker Panel") == 0) {
+        if (ctx->mips_version >= 50) {
+            MIPSLinkerPanelR5* p = &ctx->mips_panels.r5.linker;
+            p->version = 6;
+            //p->symfullpath = 1;
+            prefs = p;
+            prefsSize = sizeof(MIPSLinkerPanelR5);
+        } else if (ctx->mips_version >= 40) {
+            MIPSLinkerPanelR4* p = &ctx->mips_panels.r4.linker;
+            p->version = 4;
+            //p->symfullpath = 1;
+            prefs = p;
+            prefsSize = sizeof(MIPSLinkerPanelR4);
+        } else {
+            MIPSLinkerPanelR3* p = &ctx->mips_panels.r3.linker;
+            p->version = 2;
+            // in R3, passing -g with symfullpath = 1 causes a crash
+            //p->symfullpath = 1;
+            prefs = p;
+            prefsSize = sizeof(MIPSLinkerPanelR3);
+        }
+    }
+    else if (strcmp(prefsname, "IR Optimizer") == 0) {
+        prefs = &ctx->mips_panels.r3.ir_opt;
+        prefsSize = sizeof(PIROptimizerDummy); 
+    }
+    else {
+        LOG("  Unknown MIPS preference panel: %s", prefsname);
+        prefsSize = 256; 
+    }
+
+    CWAllocMemHandle(ctx, prefsSize, FALSE, (CWMemHandle*)prefsdata);
+    if (prefs && prefsSize > 0) {
+        void* ptr = NULL;
+        CWLockMemHandle(ctx, *(CWMemHandle*)prefsdata, FALSE, &ptr);
+        if (ptr) memcpy(ptr, prefs, (size_t)prefsSize);
+        CWUnlockMemHandle(ctx, *(CWMemHandle*)prefsdata);
+    }
+    return cwNoErr;
 }
 
-static void build_mips_linker_panel(CWPluginContext ctx) {
-    memcpy(ctx->prefsMIPSLinkerPanel,
-           &ctx->prefsMIPSLinker,
-           sizeof(ctx->prefsMIPSLinkerPanel));
-
-    /*
-     * R4 reads genOutput at 0x03, R5/R5.2 reads 0x05.
-     * Mirror to both offsets to avoid version branching.
-     */
-    ctx->prefsMIPSLinkerPanel[0x03] = ctx->prefsMIPSLinker.genOutput;
-    ctx->prefsMIPSLinkerPanel[0x05] = ctx->prefsMIPSLinker.genOutput;
-}
-
-CW_CALLBACK CWSecretGetNamedPreferences(CWPluginContext ctx,
-    const char* prefsname, void** prefsdata)
-{
-    LOG("CWSecretGetNamedPreferences(\"%s\", %p)", prefsname ? prefsname : "NULL", prefsdata);
-    if (!ctx || !prefsname || !prefsdata) return cwErrInvalidParameter;
-
+/* Original PowerPC / Legacy layout mapping */
+static CWResult PPC_GetPreferences(CWPluginContext ctx, const char* prefsname, void** prefsdata) {
     const void* prefs = NULL;
     SInt32 prefsSize = 0;
     if (strcmp(prefsname, "C/C++ Compiler") == 0) {
@@ -1074,23 +1157,7 @@ CW_CALLBACK CWSecretGetNamedPreferences(CWPluginContext ctx,
                strcmp(prefsname, "EPPC Global Optimizer") == 0) {
         prefs = &ctx->prefsOptimizer;
         prefsSize = sizeof(ctx->prefsOptimizer);
-    } else if (strcmp(prefsname, "MIPS CodeGen") == 0) {
-        build_mips_codegen_panel(ctx);
-        prefs = ctx->prefsMIPSCodeGenPanel;
-        prefsSize = sizeof(ctx->prefsMIPSCodeGenPanel);
-    } else if (strcmp(prefsname, "MIPS Linker Panel") == 0) {
-        build_mips_linker_panel(ctx);
-        prefs = ctx->prefsMIPSLinkerPanel;
-        prefsSize = sizeof(ctx->prefsMIPSLinkerPanel);
-    } else if (strcmp(prefsname, "MIPS Project") == 0) {
-        prefs = &ctx->prefsMIPSProject;
-        prefsSize = sizeof(ctx->prefsMIPSProject);
-    } else if (strcmp(prefsname, "IR Optimizer") == 0) {
-        /* CW PS R4/R4.1 vestigial panel: data never read, just return zeros */
-        prefsSize = 12;
-    }
-    /* ---- PPC EABI panels (GC/Wii target) ---- */
-    else if (strcmp(prefsname, "PPC EABI CodeGen") == 0) {
+    } else if (strcmp(prefsname, "PPC EABI CodeGen") == 0) {
         prefs = &ctx->prefsPPCCodeGen;
         prefsSize = sizeof(ctx->prefsPPCCodeGen);
     } else if (strcmp(prefsname, "PPC EABI Linker") == 0) {
@@ -1118,6 +1185,19 @@ CW_CALLBACK CWSecretGetNamedPreferences(CWPluginContext ctx,
         CWUnlockMemHandle(ctx, *(CWMemHandle*)prefsdata);
     }
     return cwNoErr;
+}
+
+CW_CALLBACK CWSecretGetNamedPreferences(CWPluginContext ctx,
+    const char* prefsname, void** prefsdata)
+{
+    LOG("CWSecretGetNamedPreferences(\"%s\", %p)", prefsname ? prefsname : "NULL", prefsdata);
+    if (!ctx || !prefsname || !prefsdata) return cwErrInvalidParameter;
+
+    if (ctx->mips_version > 0) {
+        return MIPS_GetPreferences(ctx, prefsname, prefsdata);
+    } else {
+        return PPC_GetPreferences(ctx, prefsname, prefsdata);
+    }
 }
 
 CW_CALLBACK CWGetNamedPreferences(CWPluginContext ctx, const char* prefsname, CWMemHandle* prefsdata) {
