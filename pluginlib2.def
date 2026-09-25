@@ -2,6 +2,7 @@ LIBRARY PluginLib2
 EXPORTS
     ; Custom exports for mwccwrap
     MWCC_InitStringTable
+    MWCC_SetCodePage
 
     ; CW Plugin Core (8000-8034)
     CWGetPluginRequest              @8000

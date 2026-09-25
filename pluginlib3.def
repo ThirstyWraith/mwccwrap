@@ -2,6 +2,7 @@ LIBRARY PluginLib3
 EXPORTS
     ; Custom exports for mwccwrap
     MWCC_InitStringTable
+    MWCC_SetCodePage
 
     ; COS Handle Management (2000-2007)
     COS_NewHandle                   @2000

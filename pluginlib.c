@@ -1937,9 +1937,61 @@ void __cdecl COS_GetString(char* buffer, SInt16 strListID, SInt16 index) {
     LOG("  -> not found");
 }
 
-Boolean __cdecl COS_IsMultiByte(const char* str) {
-    STUB("COS_IsMultiByte");
-    return FALSE;
+/* Code page for the double-byte character checks; CP_ACP = system code page. */
+static UINT g_code_page = CP_ACP;
+
+/* Set the code page for the double-byte character checks. */
+void __cdecl MWCC_SetCodePage(UINT code_page) {
+    LOG("MWCC_SetCodePage(%u)", code_page);
+    g_code_page = code_page;
+}
+
+static BOOL is_lead_byte(unsigned char c) {
+    return IsDBCSLeadByteEx(g_code_page, c);
+}
+
+/*
+ * Classify text[offset] as a single byte (0), or the first (-1) or last (1)
+ * byte of a double-byte character, like the Script Manager's
+ * CharacterByteType.
+ */
+static SInt16 character_byte_type(const char* text, SInt16 offset) {
+    const unsigned char* p = (const unsigned char*)text;
+    SInt16 result = 0;
+    int in_lead = 0;
+    unsigned char c;
+    int i;
+
+    if (offset <= 0) {
+        return is_lead_byte(p[0]) ? -1 : 0;
+    }
+
+    c = p[offset];
+    if (c == 0x7F || c < 0x40 || c > 0xFC) return 0;
+    if (!is_lead_byte(c) && !is_lead_byte(p[offset - 1])) return 0;
+
+    for (i = 0; i <= offset; i++) {
+        c = p[i];
+        result = 0;
+        if (is_lead_byte(c) && !in_lead) {
+            result = -1;
+            in_lead = 1;
+            continue;
+        }
+        if (in_lead && c != 0x7F && c >= 0x40 && c <= 0xFC) result = 1;
+        in_lead = 0;
+    }
+    return result;
+}
+
+/*
+ * COS_IsMultiByte - is the byte at pos the second byte of a double-byte
+ * character in the text starting at text?
+ *
+ * The DLL calls this to tell the second byte of a character from ASCII.
+ */
+Boolean __cdecl COS_IsMultiByte(const char* text, const char* pos) {
+    return character_byte_type(text, (SInt16)(pos - text)) == 1;
 }
 
 /* ============================================================
