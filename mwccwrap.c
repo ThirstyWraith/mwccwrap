@@ -13,7 +13,7 @@
 #include <winver.h>
 #include "host_ctx.h"
 
-#define MWCCWRAP_VERSION "1.0"
+#define MWCCWRAP_VERSION "1.1"
 #define MAX_INCLUDE_PATHS 64
 #define MAX_SOURCE_FILES 256
 
