@@ -536,6 +536,7 @@ typedef struct CWPluginPrivateContext {
     int    dependencyMode;      /* 0=off, 1=deps-only (-M/-MM/-make), 2=deps+compile (-MD/-MMD) */
     int    depsOnlyUserFiles;   /* -MM / -MMD */
     char   dependencyOutputFile[MAX_PATH]; /* -o makefile path for deps-only mode */
+    int    codePage;            /* -codepage N (0=system code page) */
 
     /* Error tracking */
     int    numErrors;

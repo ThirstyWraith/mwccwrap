@@ -30,6 +30,9 @@ typedef short (__stdcall *PluginMainFunc)(CWPluginContext context);
 /* PluginLib string table init */
 typedef void (__cdecl *MWCC_InitStringTableFunc)(HMODULE);
 
+/* PluginLib code page selection */
+typedef void (__cdecl *MWCC_SetCodePageFunc)(unsigned int);
+
 /* PluginLib handle */
 static HMODULE g_registered_pluginlib_module = NULL;
 static int g_registered_pluginlib_version = 0;
@@ -124,6 +127,7 @@ static void print_help(void) {
         "  -str[ings] [no]reuse|[no]pool|[no]readonly\n"
         "                         String constant handling\n"
         "  -multibyte[aware]      Enable multibyte character support\n"
+        "  -codepage N            Code page for -multibyte (default: system)\n"
         "  -once                  Prevent repeated header processing\n"
         "  -relax_pointers        Relax pointer type checking\n"
         "\n"
@@ -1704,6 +1708,10 @@ static int parse_args(int argc, char* argv[], CWPluginContext ctx,
         else if (strcmp(arg, "-multibyte") == 0 || strcmp(arg, "-multibyteaware") == 0) {
             fe->multibyteaware = 1;
         }
+        else if (strcmp(arg, "-codepage") == 0) {
+            NEXT_ARG(arg_val);
+            ctx->codePage = atoi(arg_val);
+        }
         else if (strcmp(arg, "-once") == 0) {
             ctx->forceIncludeOnce = 1;
             add_pragma(ctx, "once on");
@@ -2264,6 +2272,17 @@ int main(int argc, char* argv[]) {
         }
     } else if (ctx.verbose) {
         fprintf(stderr, "Warning: PluginLib not loaded\n");
+    }
+
+    /* Pass -codepage to PluginLib. */
+    if (ctx.codePage != 0) {
+        MWCC_SetCodePageFunc setCodePage =
+            (MWCC_SetCodePageFunc)GetProcAddress(g_registered_pluginlib_module, "MWCC_SetCodePage");
+        if (setCodePage) {
+            setCodePage(ctx.codePage);
+        } else {
+            fprintf(stderr, "Warning: -codepage ignored, MWCC_SetCodePage not found in PluginLib\n");
+        }
     }
 
     PluginMainFunc plugin_main = (PluginMainFunc)GetProcAddress(hDll, "main");
